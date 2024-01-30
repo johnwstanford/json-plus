@@ -8,8 +8,8 @@ Created on Mon Jan 29 21:06:14 2024
 
 import socket
 
-HOST = "127.0.0.1"  # The server's hostname or IP address
-PORT = 30009  # The port used by the server
+HOST = "192.168.50.96"  # The server's hostname or IP address
+PORT = 30011  # The port used by the server
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))

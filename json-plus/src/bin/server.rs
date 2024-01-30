@@ -84,7 +84,7 @@ fn main() -> Result<(), &'static str> {
                     }
                 }
 
-                if r.is_none() {
+                if r.is_some() {
                     in_streams_worker.lock().unwrap().push_back(s);
                 }
 
