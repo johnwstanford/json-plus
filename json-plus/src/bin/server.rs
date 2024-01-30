@@ -31,8 +31,8 @@ fn main() -> Result<(), &'static str> {
     let in_streams: Arc<Mutex<VecDeque<TcpStream>>> = Arc::new(Mutex::new(VecDeque::new()));
     let out_streams: Arc<Mutex<VecDeque<TcpStream>>> = Arc::new(Mutex::new(VecDeque::new()));
 
-    // let transit: Arc<Mutex<VecDeque<Vec<u8>>>> = Arc::new(Mutex::new(VecDeque::new()));
-    // let recycle: Arc<Mutex<VecDeque<Vec<u8>>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let transit: Arc<Mutex<VecDeque<Vec<u8>>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let recycle: Arc<Mutex<VecDeque<Vec<u8>>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let in_streams_listen = in_streams.clone();
     let in_listener = TcpListener::bind(format!("0.0.0.0:{}", in_port))
@@ -63,8 +63,8 @@ fn main() -> Result<(), &'static str> {
     });
 
     let in_streams_worker = in_streams.clone();
-    // let transit_worker = transit.clone();
-    // let recycle_worker = recycle.clone();
+    let transit_worker = transit.clone();
+    let recycle_worker = recycle.clone();
     std::thread::spawn(move || {
         let mut header_buff: [u8; 20] = [0; 20];
         loop {
@@ -76,11 +76,13 @@ fn main() -> Result<(), &'static str> {
                     let n = header.total_len as usize;
                     println!("IN: {:?}", header);
 
-                    // let mut buff = recycle_worker.lock().unwrap().pop_front().unwrap_or_default();
-                    let mut buff: Vec<u8> = vec![];
+                    let mut buff = recycle_worker.lock().unwrap().pop_front().unwrap_or_default();
                     buff.resize(n, 0);
                     if s.read(&mut buff[20..]).ok() == Some(n-20) {
-                        println!("Size OK");
+                        if &header.title_word[..] == &HEARTBEAT[..8] {
+                            println!("Checks OK, forwarding to subscribers");
+                            transit_worker.lock().unwrap().push_back(buff);
+                        }
                     }
                 }
 
@@ -95,6 +97,12 @@ fn main() -> Result<(), &'static str> {
     // Use the main thread to process output
     let mut last_heartbeat = Instant::now();
     loop {
+
+        if let Some(buff) = transit.lock().unwrap().pop_front() {
+            out_streams.lock().unwrap().retain(|mut s| s.write_all(&buff[..]).is_ok());
+            recycle.lock().unwrap().push_back(buff);
+        }
+
         if last_heartbeat.elapsed() > HEARTBEAT_RATE {
             last_heartbeat = Instant::now();
 
