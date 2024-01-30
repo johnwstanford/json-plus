@@ -21,13 +21,24 @@ fn main() -> Result<(), &'static str> {
         .map_err(|_| "Unable to bind")?;
 
     for stream in listener.incoming() {
-        let mut stream = stream.map_err(|_| "Stream creation failed")?;
-        println!("Connected to {:?}", stream.peer_addr());
 
-        loop {
-            stream.write_all(&HEARTBEAT).map_err(|_| "Unable to send heartbeat")?;
-            std::thread::sleep(HEARTBEAT_RATE);
+        if let Ok(mut stream) = stream {
+
+            let addr = stream.peer_addr();
+            println!("Connected to {:?}", addr);
+
+            std::thread::spawn(move || {
+
+                while let Ok(_) = stream.write_all(&HEARTBEAT) {
+                    std::thread::sleep(HEARTBEAT_RATE);
+                }
+
+                println!("Dropped connection to {:?}", addr);
+
+            });
+
         }
+
     }
 
     Ok(())
