@@ -78,6 +78,8 @@ fn main() -> Result<(), &'static str> {
 
                     let mut buff = recycle_worker.lock().unwrap().pop_front().unwrap_or_default();
                     buff.resize(n, 0);
+
+                    buff[..20].copy_from_slice(&header_buff);
                     if s.read(&mut buff[20..]).ok() == Some(n-20) {
                         if &header.title_word[..] == &HEARTBEAT[..8] {
                             println!("Checks OK, forwarding to subscribers");
